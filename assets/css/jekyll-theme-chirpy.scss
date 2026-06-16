@@ -9,3 +9,60 @@
 ';
 
 /* append your custom style below */
+
+/* ===========================================================
+   Custom light restyle (ported from Claude Design mockup)
+   light-only palette · Pretendard/Fira Code fonts · blue accent
+   =========================================================== */
+
+/* Override light-theme variables. Same selector as Chirpy's, declared
+   later, so it wins without needing higher specificity. */
+html:not([data-mode]),
+html[data-mode='light'] {
+  /* accent / links */
+  --link-color: #1f5bc4;
+  --link-underline-color: rgba(45, 108, 223, 0.35);
+
+  /* code */
+  --inline-code-bg: rgba(45, 108, 223, 0.09);
+  --highlighter-rouge-color: #1f5bc4;
+
+  /* callouts (prompt-*) */
+  --prompt-info-bg: rgba(45, 108, 223, 0.07);
+  --prompt-info-icon-color: #2d6cdf;
+  --prompt-tip-bg: rgba(32, 120, 90, 0.09);
+  --prompt-tip-icon-color: #20785a;
+  --prompt-warning-bg: rgba(234, 185, 90, 0.16);
+  --prompt-warning-icon-color: #b7731a;
+  --prompt-danger-bg: rgba(191, 93, 87, 0.1);
+  --prompt-danger-icon-color: #bf5d57;
+}
+
+/* fonts + page background */
+body {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+  word-break: keep-all;
+  background:
+    radial-gradient(1200px 820px at 10% -10%, rgba(114, 155, 255, 0.16), transparent 55%),
+    radial-gradient(1100px 760px at 94% 110%, rgba(118, 205, 255, 0.13), transparent 55%),
+    linear-gradient(162deg, #f7f9fc 0%, #edf2f8 50%, #e6edf6 100%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+code, pre, kbd, .highlight, .filepath {
+  font-family: 'Fira Code', 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* rounder callouts to match the mockup */
+.prompt-info,
+.prompt-tip,
+.prompt-warning,
+.prompt-danger {
+  border-radius: 12px;
+}

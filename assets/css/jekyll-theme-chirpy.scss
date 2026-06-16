@@ -38,21 +38,14 @@ html[data-mode='light'] {
   --prompt-danger-icon-color: #bf5d57;
 }
 
-/* fonts + page background */
+/* page background + Korean line breaking (font now set via $font-family-* vars) */
 body {
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
   word-break: keep-all;
   background:
     radial-gradient(1200px 820px at 10% -10%, rgba(114, 155, 255, 0.16), transparent 55%),
     radial-gradient(1100px 760px at 94% 110%, rgba(118, 205, 255, 0.13), transparent 55%),
     linear-gradient(162deg, #f7f9fc 0%, #edf2f8 50%, #e6edf6 100%);
   background-attachment: fixed;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
-  letter-spacing: -0.02em;
 }
 
 code, pre, kbd, .highlight, .filepath {
@@ -65,4 +58,10 @@ code, pre, kbd, .highlight, .filepath {
 .prompt-warning,
 .prompt-danger {
   border-radius: 12px;
+}
+
+/* footer: blend into the page background instead of a white band */
+footer {
+  background: transparent;
+  border-top-color: rgba(97, 114, 139, 0.16);
 }

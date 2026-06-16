@@ -1,6 +1,6 @@
 ---
 title: Java 카테고리 시작
-date: 2026-06-16 12:00:00 +0900
+date: 2026-06-16 04:00:00 +0900
 categories: [개발, Java]
 tags: [java]
 ---

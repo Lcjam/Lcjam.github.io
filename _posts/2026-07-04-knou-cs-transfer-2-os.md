@@ -73,7 +73,7 @@ public GatewayFilter apply(Config config) {
 
         String token = extractToken(exchange.getRequest());
         if (token == null || !validateToken(token)) {
-            // 토큰이 없거나 위조면 여기서 401 — 뒤의 서비스로 넘어가지 못한다
+            // 토큰이 없거나 위조·만료면 여기서 401 — 뒤의 서비스로 넘어가지 못한다
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return writeError(exchange);
         }
@@ -97,7 +97,7 @@ public GatewayFilter apply(Config config) {
 강의는 참조 모니터의 필수 조건으로 **완전 중재(Complete Mediation)** 를 든다. "우회 경로가 존재해서는 안 된다. 모든 접근 요구가 예외 없이 관문을 관통해야 한다." 그런데 내 필터엔 예외가 있다. 로그인·회원가입처럼 토큰이 없어야 정상인 경로들이다.
 
 ```java
-private static final List<String> PUBLIC_PATHS = Arrays.asList(
+private static final List<String> PUBLIC_PATHS = Arrays.asList(   // 실제 리스트는 더 김 — 발췌
         "/api/core/auth/signup",
         "/api/core/auth/login",
         "/api/core/hobbies/**",   // 회원가입 화면에서 필요한 참조 데이터
@@ -122,12 +122,14 @@ private final Map<String, Long> blacklistedTokens = new ConcurrentHashMap<>();
 public void addToBlacklist(String token, Long expiry) {  // 로그아웃할 때 담아둔다
     blacklistedTokens.put(token, expiry);
 }
-public boolean isBlacklisted(String token) {             // 요청마다 걸러낸다
+public boolean isBlacklisted(String token) {             // 서비스 필터가 요청마다 걸러낸다
     return blacklistedTokens.containsKey(token);
 }
 ```
 
 만들 때는 그냥 "로그아웃하려면 이 수밖에 없네" 하고 짰다. 그런데 강의를 듣고 보니, 이건 회수가 쉬운 ACL의 성질을 Capability에 도로 덧댄 절충이었다. stateless하다고 골라 놓고, 정작 회수를 하려니 서버 상태(블랙리스트)를 다시 끌어들인 셈이다. 내가 감으로 밟았던 트레이드오프에 교과서가 뒤늦게 이름을 붙여줬다.
+
+덧붙이면, 이 블랙리스트 검사는 게이트웨이가 아니라 각 서비스(CoreService)의 필터에서 돈다. 게이트웨이는 서명까지만 보고, "이미 로그아웃된 토큰인지"는 뒤쪽 서비스가 판정한다. 그러고 보면 내 '관문'은 한 겹이 아니라 두 겹이었다. 모든 요청이 단 하나의 관문을 관통한다던 완전 중재가, 실제 아키텍처에선 그렇게 깔끔하게 떨어지지 않았던 셈이다.
 
 ## 마무리
 

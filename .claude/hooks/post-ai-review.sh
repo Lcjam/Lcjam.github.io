@@ -27,7 +27,11 @@ case "$cmd" in
   *) exit 0 ;;
 esac
 
-[ "${SKIP_AI_REVIEW:-0}" = "1" ] && exit 0
+# 우회: 환경변수 SKIP_AI_REVIEW=1, 또는 커밋 명령줄에 SKIP_AI_REVIEW=1 을 붙인 경우.
+# (PreToolUse 훅은 자기 프로세스 env만 보므로 명령 문자열도 함께 검사한다.)
+if [ "${SKIP_AI_REVIEW:-0}" = "1" ] || printf '%s' "$cmd" | grep -q 'SKIP_AI_REVIEW=1'; then
+  exit 0
+fi
 command -v git >/dev/null 2>&1 || exit 0
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0

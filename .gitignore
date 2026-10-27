@@ -30,3 +30,7 @@ assets/js/dist
 *~
 .DS_Store
 Thumbs.db
+
+# 비공개 초안·리뷰 메모
+draft/
+.review/

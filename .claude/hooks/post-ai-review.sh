@@ -5,8 +5,8 @@
 #
 #   1단계 린터(고정밀, 무료/즉시): 작가의 실제 평어체 목소리엔 없는데
 #          AI가 흘리기 쉬운 신호만 잡는다 — 어조 혼용 / 영어 잔재 / 상투구.
-#   2단계 LLM 게이트(claude -p): 1단계를 통과하면 기존 문체 기준으로
-#          사람이 직접 쓴 글처럼 읽히는지 최종 판정한다.
+#   2단계 LLM 게이트(claude -p): 1단계를 통과하면 humanizer-ko 스킬
+#          (~/.claude/skills/humanizer-ko/SKILL.md) 기준으로 최종 판정한다.
 #
 # 문제가 있으면 exit 2로 커밋을 막고, 이유를 stderr로 돌려준다(→ Claude가
 # 그 피드백을 보고 글을 고친 뒤 다시 커밋).
@@ -17,11 +17,13 @@
 set -uo pipefail
 
 MODEL="claude-sonnet-4-6"   # 2단계 판정 모델 (속도/비용 vs 정밀도 조절)
+SKILL_MD="$HOME/.claude/skills/humanizer-ko/SKILL.md"   # 2단계 판정 기준
 
 input=$(cat)
 
 # --- git commit 호출에만 반응 ---------------------------------------------
-cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // ""' 2>/dev/null)
+# jq가 없으면 원본 JSON 전체에서 찾는다.
+cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // ""' 2>/dev/null || printf '%s' "$input")
 case "$cmd" in
   *"git commit"*) ;;
   *) exit 0 ;;
@@ -44,7 +46,8 @@ while IFS= read -r line; do
 done < <(git diff --cached --name-only --diff-filter=ACM -- '_posts/*.md' 2>/dev/null)
 [ "${#posts[@]}" -eq 0 ] && exit 0
 
-# 본문만 남긴다: 프런트매터(첫 두 ---) 제거 + 코드펜스(```) 제거 + 인라인코드(`...`) 제거
+# 본문만 남긴다: 프런트매터(첫 두 ---) 제거 + 코드펜스(```) 제거 + 표 줄 제거 + 인라인코드(`...`) 제거
+# (표 셀은 평어체로 짧게 쓰는 게 이 블로그 문체라 어조 집계에서 뺀다 — .claude/blog-voice.md)
 extract_body() {
   awk '
     BEGIN { fm = 0; code = 0 }
@@ -52,6 +55,7 @@ extract_body() {
     fm < 2 { next }
     /^[[:space:]]*```/ { code = !code; next }
     code { next }
+    /^[[:space:]]*\|/ { next }
     { print }
   ' | sed 's/`[^`]*`//g'
 }
@@ -72,8 +76,11 @@ for f in "${posts[@]}"; do
   # (A) 어조 혼용 — 평어체 글에 존댓말이 섞였는가
   formal=$(printf '%s' "$body" | count '(습니다|합니다|입니다|됩니다|니다[.!? ])')
   formal=$((formal + $(printf '%s' "$body" | count '(세요|어요|에요|예요|아요|네요|까요|드려요|십시오)[.!? ]')))
+  # 평어체 "아니다."도 '니다'로 끝나므로 존댓말 집계에서 뺀다.
+  formal=$((formal - $(printf '%s' "$body" | count '아니다[.!? ]')))
   plain_da=$(printf '%s' "$body" | count '다[.!?]')
   nida=$(printf '%s' "$body" | count '니다[.!?]')
+  nida=$((nida - $(printf '%s' "$body" | count '아니다[.!?]')))
   plain=$((plain_da - nida))
   [ "$plain" -lt 0 ] && plain=0
   if [ "$formal" -ge 2 ] && [ "$plain" -ge 2 ]; then
@@ -106,16 +113,23 @@ fi
 # 2단계: LLM 게이트 (claude -p) — 린터 통과분만 최종 판정
 # ==========================================================================
 command -v claude >/dev/null 2>&1 || exit 0   # claude 없으면 1단계까지만 (fail-open)
+[ -f "$SKILL_MD" ] || exit 0                   # 스킬 없으면 1단계까지만 (fail-open)
+VOICE_MD="$repo_root/.claude/blog-voice.md"    # 문체 견본 (「문체 보정」 샘플)
 
-rubric='너는 한국어 개발 블로그의 문체 검수자다. 아래 글이 "사람이 직접 쓴 글"로 읽히는지,
-아니면 AI가 쓴 티가 나는지 판정해라. 이 블로그의 확립된 문체 기준:
-- 평어체 반말("~다/~거다/~싶다"), 1인칭("나"), 직접 겪은 계기에서 출발하는 담담한 서술.
-- 구체 숫자·표·코드로 보여주고, 군더더기 없이 짧게 끊는 문장. 약간의 구어("근데","뭐가 문제냐면") 허용.
-- 장제부호(—), 굵게 강조, Chirpy 프롬프트 박스는 이 블로그의 정상 문체이니 AI 티로 보지 마라.
-AI 티의 예: 기계적으로 균형 잡힌 3항 나열, 과한 헤징, 공허한 일반론, 매 문단 같은 길이,
-존댓말 혼입, 번역투, "중요한 것은 ~라는 점이다"식 상투 마무리.
-첫 줄에 반드시 "VERDICT: PASS" 또는 "VERDICT: REVISE" 만 출력하고,
-REVISE면 다음 줄부터 고칠 부분을 짧은 불릿으로 적어라.'
+rubric="$(cat "$SKILL_MD")
+
+---
+위 humanizer-ko 지침을 검토 전용으로 적용한다. 글을 고쳐 쓰지 말고 판정만 해라.
+- 아래 「블로그 문체 견본」을 「문체 보정」의 샘플로 삼는다. 견본에 있는 습관(합니다체 속 ~죠/~고요/~어요,
+  표·소제목의 평어체 등)은 티로 보지 않는다. 견본 이전 글은 평어체로 일관되어 있으니, 한 문체로 일관된 글을
+  견본과 다르다는 이유만으로 REVISE하지 않는다.
+- 프런트매터, 코드 블록, Chirpy 프롬프트 박스 표기({: .prompt-tip } 등)는 판정 대상이 아니다.
+- 「판정 지침」의 오탐 방지·밀도 기준을 따른다. 글을 지배하는 패턴 군집이 있을 때만 REVISE, 고립된 사례뿐이면 PASS.
+첫 줄에 반드시 \"VERDICT: PASS\" 또는 \"VERDICT: REVISE\" 만 출력하고,
+REVISE면 다음 줄부터 고칠 부분을 패턴 번호(§N)와 원문 구절을 붙여 짧은 불릿으로 적어라.
+
+=== 블로그 문체 견본 ===
+$(cat "$VOICE_MD" 2>/dev/null)"
 
 llm_problems=""
 for f in "${posts[@]}"; do

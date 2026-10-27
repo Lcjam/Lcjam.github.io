@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-ai-review.sh",
-            "timeout": 120,
+            "timeout": 300,
             "statusMessage": "글 AI 티 최종 검토 중…"
           }
         ]
